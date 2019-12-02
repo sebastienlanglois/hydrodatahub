@@ -1,0 +1,57 @@
+Ministère de l'Environnement et de la Lutte contre les changements climatiques
+Données validées jusqu'au 2019-10-23, préliminaires par la suite
+Station:        060601         Ha! Ha! - à 7,1 km de l'embouchure                                                                                                             
+Bassin versant: 564 km²        Régime: Naturel                                           
+Coordonnées:    (NAD83) 48° 16' 39" // -70° 52' 20"
+Constante géodésique: aucune
+Date de création du fichier: 2019-11-28 18:20
+Particularité(s):
+- 
+- 
+- 
+Lexique:        E:  La donnée est estimée.
+(Remarque)      J:  Un jaugeage a été exécuté à cette date.
+                MC: La donnée représente un débit moyen converti.
+                MJ: La donnée est une moyenne journalière.
+                P:  La donnée est provisoire; P* : La donnée est provisoire et non estimée.
+                PL: La donnée correspond à la première lecture de niveau d'eau de la journée.
+                R:  Le débit est corrigé pour tenir compte de l'effet de refoulement.
+                S:  La donnée est saisie manuellement.
+                Z:  La donnée provient d'une redistribution temporelle des données enregistrées en raison d'une défectuosité de l'appareil de mesure.
+
+060601         2019/10/23          139.73         MJ
+060601         2019/10/24          139.73         MJ
+060601         2019/10/25          139.72         MJ
+060601         2019/10/26          139.70         MJ
+060601         2019/10/27          139.69         MJ
+060601         2019/10/28          139.71         MJ
+060601         2019/10/29          139.71         MJ
+060601         2019/10/30          139.70         MJ
+060601         2019/10/31          139.74         MJ
+060601         2019/11/01          140.43         MJ
+060601         2019/11/02          140.60         MJ
+060601         2019/11/03          140.42         MJ
+060601         2019/11/04          140.28         MJ
+060601         2019/11/05          140.18         MJ
+060601         2019/11/06          140.10         MJ
+060601         2019/11/07          140.04         MJ
+060601         2019/11/08          139.99         MJ
+060601         2019/11/09          139.94         MJ
+060601         2019/11/10          139.91         MJ
+060601         2019/11/11          139.86         MJ
+060601         2019/11/12          139.83         MJ
+060601         2019/11/13          139.88         MJ
+060601         2019/11/14          139.86         MJ
+060601         2019/11/15          139.84         MJ
+060601         2019/11/16          139.83         MJ
+060601         2019/11/17          139.87         MJ
+060601         2019/11/18          140.03         MJ
+060601         2019/11/19          140.04         MJ
+060601         2019/11/20          139.84         MJ
+060601         2019/11/21          139.71         MJ
+060601         2019/11/22          139.71         MJ
+060601         2019/11/23          139.73         MJ
+060601         2019/11/24          139.73         MJ
+060601         2019/11/25          139.69         MJ
+060601         2019/11/26          139.68         MJ
+060601         2019/11/27          139.70         MJ

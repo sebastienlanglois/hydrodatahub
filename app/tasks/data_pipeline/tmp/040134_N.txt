@@ -1,0 +1,64 @@
+Ministère de l'Environnement et de la Lutte contre les changements climatiques
+Données préliminaires
+Station:        040134         Bonniebrook - en amont du pont de la rue du Mont Castel                                                                                        
+Bassin versant: 72.26 km²      Régime:                                                   
+Coordonnées:    (NAD83) 45° 46' 1" // -74° 8' 14"
+Constante géodésique: aucune
+Date de création du fichier: 2019-11-28 18:10
+Particularité(s):
+- 
+- 
+- 
+Lexique:        E:  La donnée est estimée.
+(Remarque)      J:  Un jaugeage a été exécuté à cette date.
+                MC: La donnée représente un débit moyen converti.
+                MJ: La donnée est une moyenne journalière.
+                P:  La donnée est provisoire; P* : La donnée est provisoire et non estimée.
+                PL: La donnée correspond à la première lecture de niveau d'eau de la journée.
+                R:  Le débit est corrigé pour tenir compte de l'effet de refoulement.
+                S:  La donnée est saisie manuellement.
+                Z:  La donnée provient d'une redistribution temporelle des données enregistrées en raison d'une défectuosité de l'appareil de mesure.
+
+040134         2019/11/19          46.51          MJ
+040134         2019/11/20          46.50          MJ
+040134         2019/11/21          46.48          MJ
+040134         2019/11/22          46.51          MJ
+040134         2019/11/23          46.53          MJ
+040134         2019/11/24          46.51          MJ
+040134         2019/11/25          46.50          MJ
+040134         2019/11/26          46.49          MJ
+040134         2019/11/27          46.50          MJ
+040134         2019/11/28          46.53          MJ
+040134         2019/11/29          
+040134         2019/11/30          
+040134         2019/12/01          
+040134         2019/12/02          
+040134         2019/12/03          
+040134         2019/12/04          
+040134         2019/12/05          
+040134         2019/12/06          
+040134         2019/12/07          
+040134         2019/12/08          
+040134         2019/12/09          
+040134         2019/12/10          
+040134         2019/12/11          
+040134         2019/12/12          
+040134         2019/12/13          
+040134         2019/12/14          
+040134         2019/12/15          
+040134         2019/12/16          
+040134         2019/12/17          
+040134         2019/12/18          
+040134         2019/12/19          
+040134         2019/12/20          
+040134         2019/12/21          
+040134         2019/12/22          
+040134         2019/12/23          
+040134         2019/12/24          
+040134         2019/12/25          
+040134         2019/12/26          
+040134         2019/12/27          
+040134         2019/12/28          
+040134         2019/12/29          
+040134         2019/12/30          
+040134         2019/12/31          
