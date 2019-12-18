@@ -14,7 +14,7 @@ from sqlalchemy import MetaData
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import create_engine
 
-engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydro_datahub',
+engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydrodatahub',
                        echo=False, use_batch_mode=True)
 
 
@@ -104,6 +104,14 @@ def get_available_stations_from_cehq(url,
     return stations
 
 
+def get_lecacy_files(PATH1, PATH2):
+    folder1 = os.listdir(PATH1)  # folder containing your files
+    folder2 = os.listdir(PATH2)  # the other folder
+    match = list(set(PATH1) - set(PATH2))
+
+    return [item for item in PATH2 if any(x in item for x in match)]
+
+
 def load_files_from_cehq(stations_list,
                          apply_func=function_requests,
                          store='tmp'):
@@ -119,6 +127,16 @@ def del_if_2_cols(lines):
         lines.pop(0)
         del_if_2_cols(lines)
     return lines
+
+
+def delete_files_in_store(store='tmp'):
+    import os
+    import shutil
+    for root, dirs, files in os.walk(store):
+        for f in files:
+            os.unlink(os.path.join(root, f))
+        for d in dirs:
+            shutil.rmtree(os.path.join(root, d))
 
 
 def parse_metadata_from_cehq_files(stations_list,
@@ -300,11 +318,29 @@ def parse_data_from_cehq_files(metadata_df,
     return [meta_sta_hydro, meta_ts, df]
 
 
-def df_to_sql(all_dfs):
+def df_update_index_basins(df=None):
     """
 
-    :param all_dfs:
-    :return:
+    """
+    # query on station_number field (unique field for CEHQ only)
+    df_db = pd.read_sql("""
+    SELECT id_point, station_number FROM basins    
+    """, con=engine, index_col='station_number')
+    print(df_db.shape[0])
+    if df_db.shape[0] > 0:
+        id_point_new = df_db['id_point'].max() + 1
+        # replace df's  index with the one from database
+        df = df.set_index('station_number')
+        df['id_point'].update(df_db['id_point'])
+        df.loc[~df.index.isin(df_db.index)]['id_point'] = range(id_point_new, id_point_new +
+                                                                df.loc[~df.index.isin(df_db.index)]['id_point'].shape[0], 1)
+        df = df.reset_index()
+    return df
+
+
+def df_to_sql(all_dfs, n=200000):
+    """
+
     """
     meta_sta_hydro, meta_ts, df = all_dfs
     meta_sta_hydro.columns = meta_sta_hydro.columns.str.lower()
@@ -312,7 +348,9 @@ def df_to_sql(all_dfs):
     df.columns = df.columns.str.lower()
     meta = MetaData(bind=engine)
     meta.reflect(bind=engine)
-
+    meta_sta_hydro.head()
+    meta_sta_hydro = df_update_index_basins(meta_sta_hydro)
+    meta_sta_hydro.head()
     insrt_vals = meta_sta_hydro.to_dict(orient='records')
     table = meta.tables['basins']
     insrt_stmnt = insert(table).values(insrt_vals)
@@ -325,45 +363,46 @@ def df_to_sql(all_dfs):
                                                         set_=update_dict)
     engine.execute(do_nothing_stmt)
 
-    insrt_vals = meta_ts.to_dict(orient='records')
-    table = meta.tables['meta_ts']
-    insrt_stmnt = insert(table).values(insrt_vals)
-    update_dict = {
-        c.name: c
-        for c in insrt_stmnt.excluded
-        if not c.primary_key
-    }
-    do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id_time_serie'],
-                                                        set_=update_dict)
-    engine.execute(do_nothing_stmt)
-
-    n = 200000  # chunk row size
-    list_df = [df[i:i + n] for i in range(0, df.shape[0], n)]
-    table = meta.tables['don_ts']
-    constraint = table.primary_key.columns.keys()
-    for idx, chunked_df in enumerate(list_df):
-        try:
-            print(str(idx*200000))
-            insrt_vals = chunked_df.drop_duplicates().to_dict(orient='records')
-            insrt_stmnt = insert(table).values(insrt_vals)
-            update_dict = {
-                c.name: c
-                for c in insrt_stmnt.excluded
-                if not c.primary_key
-            }
-            do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=constraint,
-                                                                set_=update_dict)
-            engine.execute(do_nothing_stmt)
-        except :
-            print('chunk # {} was not inserted correctly in database'.format(idx))
-
+    # insrt_vals = meta_ts.to_dict(orient='records')
+    # table = meta.tables['meta_ts']
+    # insrt_stmnt = insert(table).values(insrt_vals)
+    # update_dict = {
+    #     c.name: c
+    #     for c in insrt_stmnt.excluded
+    #     if not c.primary_key
+    # }
+    # do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id_time_serie'],
+    #                                                     set_=update_dict)
+    # engine.execute(do_nothing_stmt)
+    #
+    #
+    # list_df = [df[i:i + n] for i in range(0, df.shape[0], n)]
+    # table = meta.tables['don_ts']
+    # constraint = table.primary_key.columns.keys()
+    # for idx, chunked_df in enumerate(list_df):
+    #     try:
+    #         print(str(idx*n))
+    #         insrt_vals = chunked_df.drop_duplicates().to_dict(orient='records')
+    #         insrt_stmnt = insert(table).values(insrt_vals)
+    #         update_dict = {
+    #             c.name: c
+    #             for c in insrt_stmnt.excluded
+    #             if not c.primary_key
+    #         }
+    #         do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=constraint,
+    #                                                             set_=update_dict)
+    #         engine.execute(do_nothing_stmt)
+    #     except :
+    #         print('chunk # {} was not inserted correctly in database'.format(idx))
 
 
 if __name__ == '__main__':
 
     ORIGINAL_PATH = 'https://www.cehq.gouv.qc.ca/hydrometrie/historique_donnees/ListeStation.asp?regionhydro=$&Tri=Non'
     stations = get_available_stations_from_cehq(ORIGINAL_PATH)
-    #load_files_from_cehq(stations)
+    load_files_from_cehq(stations)
     metadata_df = parse_metadata_from_cehq_files(stations)
     all_dfs = parse_data_from_cehq_files(metadata_df)
     df_to_sql(all_dfs)
+    delete_files_in_store()
+

@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 import psycopg2
 
 Base = declarative_base()
-engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydro_datahub', echo=True)
+engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydrodatahub', echo=True)
 
 
 class Bassins(Base):

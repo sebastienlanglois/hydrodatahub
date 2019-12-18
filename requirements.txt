@@ -36,7 +36,6 @@ numpy==1.17.4
 pandas==0.25.3
 paramiko==2.6.0
 passlib==1.7.1
-pgadmin4==4.15
 psutil==5.5.1
 psycopg2-binary==2.8.4
 pycparser==2.19
