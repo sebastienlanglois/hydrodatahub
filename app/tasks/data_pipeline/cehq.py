@@ -331,26 +331,56 @@ def df_update_index_basins(df=None):
         id_point_new = df_db['id_point'].max() + 1
         # replace df's  index with the one from database
         df = df.set_index('station_number')
+        df_index = pd.merge(df[['id_point']], df_db[['id_point']], left_index=True, right_index=True)
+        dict_index = df_index[['id_point_x', 'id_point_y']].set_index('id_point_x')
         df['id_point'].update(df_db['id_point'])
+
         df.loc[~df.index.isin(df_db.index)]['id_point'] = range(id_point_new, id_point_new +
                                                                 df.loc[~df.index.isin(df_db.index)]['id_point'].shape[0], 1)
         df = df.reset_index()
-    return df
+    return df, dict_index
+
+
+def df_update_index_ts(df=None):
+    """
+
+    """
+    # query on station_number field (unique field for CEHQ only)
+    df_db = pd.read_sql("""
+    SELECT * FROM meta_ts    
+    """, con=engine, index_col=['id_point', 'data_type', 'time_step',
+                                'aggregation', 'units', 'source'])
+    print(df_db.shape[0])
+    if df_db.shape[0] > 0:
+        id_point_new = df_db['id_time_serie'].max() + 1
+        # replace df's  index with the one from database
+        df = df.set_index(['id_point', 'data_type', 'time_step',
+                            'aggregation', 'units', 'source'])
+        df_index = pd.merge(df[['id_time_serie']], df_db[['id_time_serie']], left_index=True, right_index=True)
+        dict_index = df_index[['id_time_serie_x', 'id_time_serie_y']].set_index('id_time_serie_x')
+        df['id_time_serie'].update(df_db['id_time_serie'])
+        print(dict)
+
+        df.loc[~df.index.isin(df_db.index)]['id_time_serie'] = range(id_point_new, id_point_new +
+                                                                     df.loc[~df.index.isin(df_db.index)]
+                                                                     ['id_time_serie'].shape[0], 1)
+        df = df.reset_index()
+    return df, dict_index
+
 
 
 def df_to_sql(all_dfs, n=200000):
     """
 
     """
+    # Basins metadata
     meta_sta_hydro, meta_ts, df = all_dfs
     meta_sta_hydro.columns = meta_sta_hydro.columns.str.lower()
     meta_ts.columns = meta_ts.columns.str.lower()
     df.columns = df.columns.str.lower()
     meta = MetaData(bind=engine)
     meta.reflect(bind=engine)
-    meta_sta_hydro.head()
-    meta_sta_hydro = df_update_index_basins(meta_sta_hydro)
-    meta_sta_hydro.head()
+    meta_sta_hydro, basins_index = df_update_index_basins(meta_sta_hydro)
     insrt_vals = meta_sta_hydro.to_dict(orient='records')
     table = meta.tables['basins']
     insrt_stmnt = insert(table).values(insrt_vals)
@@ -363,37 +393,43 @@ def df_to_sql(all_dfs, n=200000):
                                                         set_=update_dict)
     engine.execute(do_nothing_stmt)
 
-    # insrt_vals = meta_ts.to_dict(orient='records')
-    # table = meta.tables['meta_ts']
-    # insrt_stmnt = insert(table).values(insrt_vals)
-    # update_dict = {
-    #     c.name: c
-    #     for c in insrt_stmnt.excluded
-    #     if not c.primary_key
-    # }
-    # do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id_time_serie'],
-    #                                                     set_=update_dict)
-    # engine.execute(do_nothing_stmt)
-    #
-    #
-    # list_df = [df[i:i + n] for i in range(0, df.shape[0], n)]
-    # table = meta.tables['don_ts']
-    # constraint = table.primary_key.columns.keys()
-    # for idx, chunked_df in enumerate(list_df):
-    #     try:
-    #         print(str(idx*n))
-    #         insrt_vals = chunked_df.drop_duplicates().to_dict(orient='records')
-    #         insrt_stmnt = insert(table).values(insrt_vals)
-    #         update_dict = {
-    #             c.name: c
-    #             for c in insrt_stmnt.excluded
-    #             if not c.primary_key
-    #         }
-    #         do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=constraint,
-    #                                                             set_=update_dict)
-    #         engine.execute(do_nothing_stmt)
-    #     except :
-    #         print('chunk # {} was not inserted correctly in database'.format(idx))
+    # time series metadata
+    meta_ts['id_point'].update(basins_index['id_point_y'])
+    meta_ts, ts_index = df_update_index_ts(meta_ts)
+    insrt_vals = meta_ts.to_dict(orient='records')
+    table = meta.tables['meta_ts']
+    insrt_stmnt = insert(table).values(insrt_vals)
+    update_dict = {
+        c.name: c
+        for c in insrt_stmnt.excluded
+        if not c.primary_key
+    }
+    do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id_time_serie'],
+                                                        set_=update_dict)
+    engine.execute(do_nothing_stmt)
+
+
+    list_df = [df[i:i + n] for i in range(0, df.shape[0], n)]
+    table = meta.tables['don_ts']
+    constraint = table.primary_key.columns.keys()
+    for idx, chunked_df in enumerate(list_df):
+        chunked_df['id_time_serie'] = chunked_df['id_time_serie'].replace(ts_index.index,
+                                                                          ts_index['id_time_serie_y'])
+        try:
+            print(str(idx*n))
+            # chunked_df['id_time_serie'].update(ts_index['id_time_serie_y'])
+            insrt_vals = chunked_df.drop_duplicates().to_dict(orient='records')
+            insrt_stmnt = insert(table).values(insrt_vals)
+            update_dict = {
+                c.name: c
+                for c in insrt_stmnt.excluded
+                if not c.primary_key
+            }
+            do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=constraint,
+                                                                set_=update_dict)
+            engine.execute(do_nothing_stmt)
+        except :
+            print('chunk # {} was not inserted correctly in database'.format(idx))
 
 
 if __name__ == '__main__':
