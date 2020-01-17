@@ -338,6 +338,8 @@ def df_update_index_basins(df=None):
         df.loc[~df.index.isin(df_db.index)]['id_point'] = range(id_point_new, id_point_new +
                                                                 df.loc[~df.index.isin(df_db.index)]['id_point'].shape[0], 1)
         df = df.reset_index()
+    else:
+        dict_index = pd.DataFrame()
     return df, dict_index
 
 
@@ -365,6 +367,9 @@ def df_update_index_ts(df=None):
                                                                      df.loc[~df.index.isin(df_db.index)]
                                                                      ['id_time_serie'].shape[0], 1)
         df = df.reset_index()
+    else:
+        dict_index = pd.DataFrame()
+
     return df, dict_index
 
 
@@ -394,7 +399,9 @@ def df_to_sql(all_dfs, n=200000):
     engine.execute(do_nothing_stmt)
 
     # time series metadata
-    meta_ts['id_point'].update(basins_index['id_point_y'])
+    print(basins_index)
+    if not basins_index.empty:
+        meta_ts['id_point'].update(basins_index['id_point_y'])
     meta_ts, ts_index = df_update_index_ts(meta_ts)
     insrt_vals = meta_ts.to_dict(orient='records')
     table = meta.tables['meta_ts']
@@ -413,7 +420,8 @@ def df_to_sql(all_dfs, n=200000):
     table = meta.tables['don_ts']
     constraint = table.primary_key.columns.keys()
     for idx, chunked_df in enumerate(list_df):
-        chunked_df['id_time_serie'] = chunked_df['id_time_serie'].replace(ts_index.index,
+        if not ts_index.empty:
+            chunked_df['id_time_serie'] = chunked_df['id_time_serie'].replace(ts_index.index,
                                                                           ts_index['id_time_serie_y'])
         try:
             print(str(idx*n))
