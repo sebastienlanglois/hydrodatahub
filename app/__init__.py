@@ -4,7 +4,6 @@ import os
 from flask import Flask, request, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_bootstrap import Bootstrap
 from redis import Redis
 import rq
 from config import Config
@@ -14,7 +13,6 @@ from app.tasks.cehq import main as cehq_task
 
 db = SQLAlchemy()
 migrate = Migrate()
-bootstrap = Bootstrap()
 
 
 def create_app(config_class=Config):
@@ -28,17 +26,16 @@ def create_app(config_class=Config):
 
     sched = BackgroundScheduler(daemon=True)
     # Explicitly kick off the background thread
-    sched.add_job(cehq_task, 'interval', minutes=10)
+    sched.add_job(cehq_task, 'interval', hours=24)
     sched.start()
 
 
 
     # Shutdown your cron thread if the web process is stopped
     atexit.register(lambda: sched.shutdown(wait=False))
-
     db.init_app(app)
-    migrate.init_app(app, db)
-    bootstrap.init_app(app)
+    MIGRATION_DIR = os.path.join('migrations')
+    migrate.init_app(app, db, directory=MIGRATION_DIR)
     app.redis = Redis.from_url(app.config['REDIS_URL'])
     app.task_queue = rq.Queue('microblog-tasks', connection=app.redis)
 

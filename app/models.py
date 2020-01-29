@@ -1,44 +1,46 @@
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, REAL
-from sqlalchemy import create_engine
 from app import db
-import psycopg2
 
 # Base = declarative_base()
 # engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydrodatahub', echo=True)
 #
 
-class Bassins(db.Model):
-    __tablename__ = 'basins'
-    id_point = Column('id_point', Integer, primary_key=True)
-    numero_station = Column('station_number', String)
-    nom_station = Column('station_name', String)
-    nom_equiv = Column('equivalent_name', String)
-    province = Column('province', String)
-    regime = Column('regulation', String)
-    superficie = Column('drainage_area', Integer)
-    latitude = Column('latitude', REAL)
-    longitude = Column('longitude', REAL)
+
+class basins(db.Model):
+    id_point = db.Column('id_point', db.Integer, primary_key=True)
+    numero_station = db.Column('station_number', db.String)
+    nom_station = db.Column('station_name', db.String)
+    nom_equiv = db.Column('equivalent_name', db.String)
+    province = db.Column('province', db.String)
+    regime = db.Column('regulation', db.String)
+    superficie = db.Column('drainage_area', db.Integer)
+    latitude = db.Column('latitude', db.REAL)
+    longitude = db.Column('longitude', db.REAL)
+
+    def __repr__(self):
+        return '<basins {}>'.format(self.id_point)
 
 
-class Meta_ts(db.Model):
-    __tablename__ = 'meta_ts'
-    id_serie = Column('id_time_serie', Integer, primary_key=True)
-    id_point = Column('id_point', Integer, ForeignKey(Bassins.id_point))
-    type_serie = Column('data_type', String)
-    pas_de_temps = Column('time_step', String)
-    aggregation = Column('aggregation', String)
-    unite = Column('units', String)
-    date_debut = Column('start_date', DateTime(timezone=True))
-    date_fin = Column('end_date', DateTime(timezone=True))
-    source = Column('source', String)
+class meta_ts(db.Model):
+    id_serie = db.Column('id_time_serie', db.Integer, primary_key=True)
+    id_point = db.Column('id_point', db.Integer, db.ForeignKey(basins.id_point))
+    type_serie = db.Column('data_type', db.String)
+    pas_de_temps = db.Column('time_step', db.String)
+    aggregation = db.Column('aggregation', db.String)
+    unite = db.Column('units', db.String)
+    date_debut = db.Column('start_date', db.DateTime(timezone=True))
+    date_fin = db.Column('end_date', db.DateTime(timezone=True))
+    source = db.Column('source', db.String)
+
+    def __repr__(self):
+        return '<meta_ts {}>'.format(self.id_serie)
 
 
-class Don_ts(db.Model):
-    __tablename__ = 'don_ts'
-    id_serie = Column('id_time_serie', Integer, ForeignKey(Meta_ts.id_serie), primary_key=True)
-    date = Column('date', DateTime(timezone=True), primary_key=True)
-    value = Column('value', REAL)
+class don_ts(db.Model):
+    id_serie = db.Column('id_time_serie', db.Integer, db.ForeignKey(meta_ts.id_serie), primary_key=True)
+    date = db.Column('date', db.DateTime(timezone=True), primary_key=True)
+    value = db.Column('value', db.REAL)
 
+    def __repr__(self):
+        return '<date {}>'.format(self.value)
 
 # Base.metadata.create_all(engine)
