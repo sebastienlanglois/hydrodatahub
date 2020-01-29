@@ -13,10 +13,11 @@ import datetime
 from sqlalchemy import MetaData
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import create_engine
+from config import Config
 
-engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydrodatahub',
-                       echo=False, use_batch_mode=True)
-
+engine = create_engine(Config.SQLALCHEMY_DATABASE_URI,
+                       echo=False)
+# engine = db.engine
 
 # Functions
 def simple_get(url):
@@ -118,8 +119,7 @@ def load_files_from_cehq(stations_list,
     """
 
     """
-    with Pool(4) as p:
-        p.map(apply_func, [(store, stations) for stations in stations_list])
+    [apply_func([store, stations]) for stations in stations_list]
 
 
 def del_if_2_cols(lines):
@@ -441,13 +441,22 @@ def df_to_sql(all_dfs, n=200000):
 
 
 def main():
+    root_path = os.path.abspath(os.path.dirname(__file__))
+    print(root_path)
+    store = os.path.join(root_path, 'tmp')
+    from pathlib import Path
+    Path(store).mkdir(parents=True, exist_ok=True)
+
     ORIGINAL_PATH = 'https://www.cehq.gouv.qc.ca/hydrometrie/historique_donnees/ListeStation.asp?regionhydro=$&Tri=Non'
     stations = get_available_stations_from_cehq(ORIGINAL_PATH)
-    load_files_from_cehq(stations)
-    metadata_df = parse_metadata_from_cehq_files(stations)
-    all_dfs = parse_data_from_cehq_files(metadata_df)
+    load_files_from_cehq(stations,
+                        store=store)
+    metadata_df = parse_metadata_from_cehq_files(stations,
+                                                 store=store)
+    all_dfs = parse_data_from_cehq_files(metadata_df,
+                                         store=store)
     df_to_sql(all_dfs)
-    delete_files_in_store()
+    delete_files_in_store(store=store)
 
 
 if __name__ == '__main__':

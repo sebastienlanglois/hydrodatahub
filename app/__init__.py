@@ -26,7 +26,7 @@ def create_app(config_class=Config):
 
     sched = BackgroundScheduler(daemon=True)
     # Explicitly kick off the background thread
-    sched.add_job(cehq_task, 'interval', hours=24)
+    sched.add_job(cehq_task, 'interval', minutes=10)
     sched.start()
 
 
