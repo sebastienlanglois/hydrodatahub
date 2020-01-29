@@ -440,8 +440,7 @@ def df_to_sql(all_dfs, n=200000):
             print('chunk # {} was not inserted correctly in database'.format(idx))
 
 
-if __name__ == '__main__':
-
+def main():
     ORIGINAL_PATH = 'https://www.cehq.gouv.qc.ca/hydrometrie/historique_donnees/ListeStation.asp?regionhydro=$&Tri=Non'
     stations = get_available_stations_from_cehq(ORIGINAL_PATH)
     load_files_from_cehq(stations)
@@ -449,4 +448,8 @@ if __name__ == '__main__':
     all_dfs = parse_data_from_cehq_files(metadata_df)
     df_to_sql(all_dfs)
     delete_files_in_store()
+
+
+if __name__ == '__main__':
+    main()
 
