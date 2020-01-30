@@ -26,7 +26,7 @@ def create_app(config_class=Config):
     sched = BackgroundScheduler(daemon=True,
                                 jobstores={'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')})
     # Explicitly kick off the background thread
-    sched.add_job(cehq_task, 'interval', minutes=24)
+    sched.add_job(cehq_task, 'interval', hours=24)
     sched.start()
     # Shutdown your cron thread if the web process is stopped
     atexit.register(lambda: sched.shutdown(wait=False))
