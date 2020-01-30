@@ -9,6 +9,7 @@ import rq
 from config import Config
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from app.tasks.cehq import main as cehq_task
 
 db = SQLAlchemy()
@@ -19,20 +20,17 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-
     def job_function():
         print('tests')
 
-
-    sched = BackgroundScheduler(daemon=True)
+    sched = BackgroundScheduler(daemon=True,
+                                jobstores={'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')})
     # Explicitly kick off the background thread
     sched.add_job(cehq_task, 'interval', minutes=10)
     sched.start()
-
-
-
     # Shutdown your cron thread if the web process is stopped
     atexit.register(lambda: sched.shutdown(wait=False))
+
     db.init_app(app)
     MIGRATION_DIR = os.path.join('migrations')
     migrate.init_app(app, db, directory=MIGRATION_DIR)
