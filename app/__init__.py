@@ -7,6 +7,7 @@ from flask_migrate import Migrate
 from redis import Redis
 import rq
 from config import Config
+from app.dashboards import Dash_App1, Dash_App2
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -23,13 +24,13 @@ def create_app(config_class=Config):
     def job_function():
         print('tests')
 
-    sched = BackgroundScheduler(daemon=True,
-                                jobstores={'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')})
-    # Explicitly kick off the background thread
-    sched.add_job(cehq_task, 'interval', hours=24)
-    sched.start()
+    # sched = BackgroundScheduler(daemon=True,
+    #                             jobstores={'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')})
+    # # Explicitly kick off the background thread
+    # sched.add_job(cehq_task, 'interval', hours=24)
+    # sched.start()
     # Shutdown your cron thread if the web process is stopped
-    atexit.register(lambda: sched.shutdown(wait=False))
+    # atexit.register(lambda: sched.shutdown(wait=False))
 
     db.init_app(app)
     MIGRATION_DIR = os.path.join('migrations')
@@ -39,6 +40,12 @@ def create_app(config_class=Config):
 
     from app.api import bp as api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
+
+    from app.dashboards import bp as dash_bp
+    app.register_blueprint(dash_bp, url_prefix='/dashboards')
+
+    app = Dash_App1.Add_Dash(app)
+    app = Dash_App2.Add_Dash(app)
 
     if not app.debug and not app.testing:
         if app.config['LOG_TO_STDOUT']:
