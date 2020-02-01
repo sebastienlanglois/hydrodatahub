@@ -24,13 +24,13 @@ def create_app(config_class=Config):
     def job_function():
         print('tests')
 
-    # sched = BackgroundScheduler(daemon=True,
-    #                             jobstores={'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')})
-    # # Explicitly kick off the background thread
-    # sched.add_job(cehq_task, 'interval', hours=24)
-    # sched.start()
+    sched = BackgroundScheduler(daemon=True,
+                                jobstores={'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')})
+    # Explicitly kick off the background thread
+    sched.add_job(cehq_task, 'interval', hours=24)
+    sched.start()
     # Shutdown your cron thread if the web process is stopped
-    # atexit.register(lambda: sched.shutdown(wait=False))
+    atexit.register(lambda: sched.shutdown(wait=False))
 
     db.init_app(app)
     MIGRATION_DIR = os.path.join('migrations')
