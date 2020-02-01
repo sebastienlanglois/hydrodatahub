@@ -31,7 +31,7 @@ def meta_ts():
 
 @bp.route('/query', methods=['GET', 'POST'])
 def query():
-    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI_PUBLIC,
+    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI,
                            echo=False)
     # sql = """
     # SELECT * FROM basins
