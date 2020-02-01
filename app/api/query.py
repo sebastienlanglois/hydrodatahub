@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 
 @bp.route('/basins', methods=['GET'])
 def basins():
-    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI,
+    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI_PUBLIC,
                            echo=False)
     sql = """
     SELECT * FROM basins
@@ -20,7 +20,7 @@ def basins():
 
 @bp.route('/meta_ts', methods=['GET'])
 def meta_ts():
-    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI,
+    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI_PUBLIC,
                            echo=False)
     sql = """
     SELECT * FROM meta_ts
@@ -31,7 +31,7 @@ def meta_ts():
 
 @bp.route('/query', methods=['GET', 'POST'])
 def query():
-    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI,
+    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI_PUBLIC,
                            echo=False)
     # sql = """
     # SELECT * FROM basins
