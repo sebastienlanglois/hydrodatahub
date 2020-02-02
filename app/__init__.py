@@ -32,11 +32,11 @@ def create_app(config_class=Config):
     db.init_app(app)
     MIGRATION_DIR = os.path.join('migrations')
     migrate.init_app(app, db, directory=MIGRATION_DIR)
-    app.redis = Redis.from_url(app.config['REDIS_URL'])
-    app.task_queue = rq.Queue('microblog-tasks', connection=app.redis)
-
-    from app.api import bp as api_bp
-    app.register_blueprint(api_bp, url_prefix='/api')
+    # app.redis = Redis.from_url(app.config['REDIS_URL'])
+    # app.task_queue = rq.Queue('microblog-tasks', connection=app.redis)
+    #
+    # from app.api import bp as api_bp
+    # app.register_blueprint(api_bp, url_prefix='/api')
 
     # from app.dashboards import bp as dash_bp
     # app.register_blueprint(dash_bp, url_prefix='/dashboards')
