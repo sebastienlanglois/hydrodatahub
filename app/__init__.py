@@ -21,9 +21,6 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    def job_function():
-        print('tests')
-
     # sched = BackgroundScheduler(daemon=True,
     #                             jobstores={'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')})
     # # Explicitly kick off the background thread
@@ -41,11 +38,11 @@ def create_app(config_class=Config):
     from app.api import bp as api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
 
-    from app.dashboards import bp as dash_bp
-    app.register_blueprint(dash_bp, url_prefix='/dashboards')
-
-    app = Dash_App1.Add_Dash(app)
-    app = Dash_App2.Add_Dash(app)
+    # from app.dashboards import bp as dash_bp
+    # app.register_blueprint(dash_bp, url_prefix='/dashboards')
+    #
+    # app = Dash_App1.Add_Dash(app)
+    # app = Dash_App2.Add_Dash(app)
 
     if not app.debug and not app.testing:
         if app.config['LOG_TO_STDOUT']:
