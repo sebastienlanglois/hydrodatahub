@@ -255,9 +255,10 @@ def parse_data_from_cehq_files(metadata_df,
 
     key_to_delete = []
     for key, value in dict_df.items():
+        print(key)
         # Clean value column where characters exists instead of floats
-        value['VALUE'] = value['VALUE'].map(lambda x: float(str(x).lstrip('+-').rstrip('aAbBcC')))
-
+        #value['VALUE'] = value['VALUE'].map(lambda x: float(str(x).lstrip('+-').rstrip('aAbBcC')) if x <= 2.5 else 'false')
+        value['VALUE'] = value['VALUE'].apply(pd.to_numeric, errors='coerce')
         # set date as index and assign tz
         value = value.set_index('DATE')
         value.index = pd.to_datetime(value.index)
