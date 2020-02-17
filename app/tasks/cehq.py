@@ -229,11 +229,11 @@ def parse_metadata_from_cehq_files(stations_list,
     metadata_df = pd.DataFrame(np.array([list_id, list_stations, list_stations_name,
                                         list_type, list_regulated, list_coordinates,
                                         list_area]).T,
-                                        columns=['STATION_ID', 'STATION_NUMBER', 'STATION_NAME',
-                                                 'DATA_TYPE', 'REGULATION', 'COORDINATES', 'DRAINAGE_AREA'])
-    metadata_df['LATITUDE'], metadata_df['LONGITUDE'] = metadata_df['COORDINATES'].map(lambda x: ':'.join(list(map(str, x)))).str.split(':', 1).str
+                                        columns=['STATION_ID', 'numero_station', 'nom_station',
+                                                 'type_serie', 'regularisation', 'COORDINATES', 'superficie'])
+    metadata_df['latitude'], metadata_df['longitude'] = metadata_df['COORDINATES'].map(lambda x: ':'.join(list(map(str, x)))).str.split(':', 1).str
     metadata_df = metadata_df.drop('COORDINATES', axis=1)
-    metadata_df = metadata_df.sort_values(by=['STATION_NUMBER']).reset_index().drop(['index'], axis=1)
+    metadata_df = metadata_df.sort_values(by=['numero_station']).reset_index().drop(['index'], axis=1)
     return metadata_df
 
 
@@ -255,7 +255,6 @@ def parse_data_from_cehq_files(metadata_df,
 
     key_to_delete = []
     for key, value in dict_df.items():
-        print(key)
         # Clean value column where characters exists instead of floats
         #value['VALUE'] = value['VALUE'].map(lambda x: float(str(x).lstrip('+-').rstrip('aAbBcC')) if x <= 2.5 else 'false')
         value['VALUE'] = value['VALUE'].apply(pd.to_numeric, errors='coerce')
@@ -273,8 +272,8 @@ def parse_data_from_cehq_files(metadata_df,
         if len(value['VALUE'].dropna()) > 0:
             debut = value['VALUE'].dropna().index[0]
             fin = value['VALUE'].dropna().index[-1]
-            metadata_df.loc[metadata_df.index[metadata_df['STATION_ID'] == key], 'START_DATE'] = debut
-            metadata_df.loc[metadata_df.index[metadata_df['STATION_ID'] == key], 'END_DATE'] = fin
+            metadata_df.loc[metadata_df.index[metadata_df['STATION_ID'] == key], 'date_debut'] = debut
+            metadata_df.loc[metadata_df.index[metadata_df['STATION_ID'] == key], 'date_fin'] = fin
         # store list of keys where no data is available to delete down the line
         else:
             metadata_df.drop(metadata_df.index[metadata_df['STATION_ID'] == key], inplace=True)
@@ -287,29 +286,29 @@ def parse_data_from_cehq_files(metadata_df,
     df.reset_index(level=0, inplace=True)
 
     # Update station metadata (meta_sta_hydro) and time series metadata (meta_ts)
-    meta_sta_hydro = metadata_df.drop(columns=['STATION_ID', 'DATA_TYPE', 'START_DATE', 'END_DATE'])
+    meta_sta_hydro = metadata_df.drop(columns=['STATION_ID', 'type_serie', 'date_debut', 'date_fin'])
     meta_sta_hydro = meta_sta_hydro.drop_duplicates()
-    meta_sta_hydro.insert(loc=2, column='PROVINCE', value='QC')
-    meta_sta_hydro.insert(loc=0, column='ID_POINT', value=range(1000, 1000 + meta_sta_hydro.shape[0], 1))
-    meta_sta_hydro.insert(loc=3, column='EQUIVALENT_NAME', value=np.nan)
+    meta_sta_hydro.insert(loc=2, column='province', value='QC')
+    meta_sta_hydro.insert(loc=0, column='id_bassin', value=range(1000, 1000 + meta_sta_hydro.shape[0], 1))
+    meta_sta_hydro.insert(loc=3, column='nom_equivalent', value=np.nan)
 
-    meta_ts = metadata_df.drop(columns = ['STATION_NAME', 'REGULATION', 'DRAINAGE_AREA', 'LATITUDE', 'LONGITUDE'])
-    meta_ts.insert(loc=3, column='TIME_STEP', value='1_J')
-    meta_ts.insert(loc=4, column='AGGREGATION', value='moy')
-    meta_ts.insert(loc=5, column='UNITS', value='m3/s')
-    meta_ts.insert(loc=8, column='SOURCE', value='CEHQ')
-    meta_ts = pd.merge(meta_ts, meta_sta_hydro[['ID_POINT', 'STATION_NUMBER']],
-                       left_on='STATION_NUMBER', right_on='STATION_NUMBER',
-                       how='left').drop(columns=['STATION_NUMBER'])
+    meta_ts = metadata_df.drop(columns = ['nom_station', 'regularisation', 'superficie', 'latitude', 'longitude'])
+    meta_ts.insert(loc=3, column='pas_de_temps', value='1_J')
+    meta_ts.insert(loc=4, column='aggregation', value='moy')
+    meta_ts.insert(loc=5, column='unites', value='m3/s')
+    meta_ts.insert(loc=8, column='source', value='CEHQ')
+    meta_ts = pd.merge(meta_ts, meta_sta_hydro[['id_bassin', 'numero_station']],
+                       left_on='numero_station', right_on='numero_station',
+                       how='left').drop(columns=['numero_station'])
     cols = meta_ts.columns.tolist()
     cols = cols[-1:] + cols[:-1]
     meta_ts = meta_ts[cols]
 
-    meta_ts.insert(loc=0, column='ID_TIME_SERIE', value=range(1000, 1000 + meta_ts.shape[0], 1))
-    meta_ts['START_DATE'] = pd.to_datetime(meta_ts['START_DATE'])
-    meta_ts['END_DATE'] = pd.to_datetime(meta_ts['END_DATE'])
+    meta_ts.insert(loc=0, column='id', value=range(1000, 1000 + meta_ts.shape[0], 1))
+    meta_ts['date_debut'] = pd.to_datetime(meta_ts['date_debut'])
+    meta_ts['date_fin'] = pd.to_datetime(meta_ts['date_fin'])
 
-    df = pd.merge(df, meta_ts[['ID_TIME_SERIE', 'STATION_ID']],
+    df = pd.merge(df, meta_ts[['id', 'STATION_ID']],
                  left_on='STATION_ID', right_on='STATION_ID', how='left').drop(columns=['STATION_ID'])
     meta_ts = meta_ts.drop(columns=['STATION_ID'])
     cols = df.columns.tolist()
@@ -325,19 +324,19 @@ def df_update_index_basins(df=None):
     """
     # query on station_number field (unique field for CEHQ only)
     df_db = pd.read_sql("""
-    SELECT id_point, station_number FROM basins    
-    """, con=engine, index_col='station_number')
+    SELECT id_bassin, numero_station FROM bassin   
+    """, con=engine, index_col='numero_station')
     print(df_db.shape[0])
     if df_db.shape[0] > 0:
-        id_point_new = df_db['id_point'].max() + 1
+        id_point_new = df_db['id_bassin'].max() + 1
         # replace df's  index with the one from database
-        df = df.set_index('station_number')
-        df_index = pd.merge(df[['id_point']], df_db[['id_point']], left_index=True, right_index=True)
-        dict_index = df_index[['id_point_x', 'id_point_y']].set_index('id_point_x')
-        df['id_point'].update(df_db['id_point'])
+        df = df.set_index('numero_station')
+        df_index = pd.merge(df[['id_bassin']], df_db[['id_bassin']], left_index=True, right_index=True)
+        dict_index = df_index[['id_bassin_x', 'id_bassin_y']].set_index('id_bassin_x')
+        df['id_bassin'].update(df_db['id_bassin'])
 
-        df.loc[~df.index.isin(df_db.index)]['id_point'] = range(id_point_new, id_point_new +
-                                                                df.loc[~df.index.isin(df_db.index)]['id_point'].shape[0], 1)
+        df.loc[~df.index.isin(df_db.index)]['id_bassin'] = range(id_point_new, id_point_new +
+                                                                df.loc[~df.index.isin(df_db.index)]['id_bassin'].shape[0], 1)
         df = df.reset_index()
     else:
         dict_index = pd.DataFrame()
@@ -350,23 +349,23 @@ def df_update_index_ts(df=None):
     """
     # query on station_number field (unique field for CEHQ only)
     df_db = pd.read_sql("""
-    SELECT * FROM meta_ts    
-    """, con=engine, index_col=['id_point', 'data_type', 'time_step',
-                                'aggregation', 'units', 'source'])
+    SELECT * FROM meta_series    
+    """, con=engine, index_col=['id_bassin', 'type_serie', 'pas_de_temps',
+                                'aggregation', 'unites', 'source'])
     print(df_db.shape[0])
     if df_db.shape[0] > 0:
-        id_point_new = df_db['id_time_serie'].max() + 1
+        id_point_new = df_db['id'].max() + 1
         # replace df's  index with the one from database
-        df = df.set_index(['id_point', 'data_type', 'time_step',
-                            'aggregation', 'units', 'source'])
-        df_index = pd.merge(df[['id_time_serie']], df_db[['id_time_serie']], left_index=True, right_index=True)
-        dict_index = df_index[['id_time_serie_x', 'id_time_serie_y']].set_index('id_time_serie_x')
-        df['id_time_serie'].update(df_db['id_time_serie'])
+        df = df.set_index(['id_bassin', 'type_serie', 'pas_de_temps',
+                            'aggregation', 'unites', 'source'])
+        df_index = pd.merge(df[['id']], df_db[['id']], left_index=True, right_index=True)
+        dict_index = df_index[['id_x', 'id_y']].set_index('id_x')
+        df['id'].update(df_db['id'])
         print(dict)
 
-        df.loc[~df.index.isin(df_db.index)]['id_time_serie'] = range(id_point_new, id_point_new +
+        df.loc[~df.index.isin(df_db.index)]['id'] = range(id_point_new, id_point_new +
                                                                      df.loc[~df.index.isin(df_db.index)]
-                                                                     ['id_time_serie'].shape[0], 1)
+                                                                     ['id'].shape[0], 1)
         df = df.reset_index()
     else:
         dict_index = pd.DataFrame()
@@ -388,42 +387,42 @@ def df_to_sql(all_dfs, n=200000):
     meta.reflect(bind=engine)
     meta_sta_hydro, basins_index = df_update_index_basins(meta_sta_hydro)
     insrt_vals = meta_sta_hydro.to_dict(orient='records')
-    table = meta.tables['basins']
+    table = meta.tables['bassin']
     insrt_stmnt = insert(table).values(insrt_vals)
     update_dict = {
         c.name: c
         for c in insrt_stmnt.excluded
         if not c.primary_key
     }
-    do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id_point'],
+    do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id_bassin'],
                                                         set_=update_dict)
     engine.execute(do_nothing_stmt)
 
     # time series metadata
     print(basins_index)
     if not basins_index.empty:
-        meta_ts['id_point'].update(basins_index['id_point_y'])
+        meta_ts['id_bassin'].update(basins_index['id_bassin_y'])
     meta_ts, ts_index = df_update_index_ts(meta_ts)
     insrt_vals = meta_ts.to_dict(orient='records')
-    table = meta.tables['meta_ts']
+    table = meta.tables['meta_series']
     insrt_stmnt = insert(table).values(insrt_vals)
     update_dict = {
         c.name: c
         for c in insrt_stmnt.excluded
         if not c.primary_key
     }
-    do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id_time_serie'],
+    do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id'],
                                                         set_=update_dict)
     engine.execute(do_nothing_stmt)
 
 
     list_df = [df[i:i + n] for i in range(0, df.shape[0], n)]
-    table = meta.tables['don_ts']
+    table = meta.tables['don_series']
     constraint = table.primary_key.columns.keys()
     for idx, chunked_df in enumerate(list_df):
         if not ts_index.empty:
-            chunked_df['id_time_serie'] = chunked_df['id_time_serie'].replace(ts_index.index,
-                                                                          ts_index['id_time_serie_y'])
+            chunked_df['id'] = chunked_df['id'].replace(ts_index.index,
+                                                                          ts_index['id_y'])
         try:
             print(str(idx*n))
             # chunked_df['id_time_serie'].update(ts_index['id_time_serie_y'])
@@ -450,8 +449,8 @@ def main():
 
     ORIGINAL_PATH = 'https://www.cehq.gouv.qc.ca/hydrometrie/historique_donnees/ListeStation.asp?regionhydro=$&Tri=Non'
     stations = get_available_stations_from_cehq(ORIGINAL_PATH)
-    load_files_from_cehq(stations,
-                        store=store)
+    # load_files_from_cehq(stations,
+    #                     store=store)
     metadata_df = parse_metadata_from_cehq_files(stations,
                                                  store=store)
     all_dfs = parse_data_from_cehq_files(metadata_df,
