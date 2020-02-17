@@ -100,7 +100,7 @@ class centrale(db.Model):
 class meta_series(db.Model):
     __tablename__ = 'meta_series'
     __table_args__ = {'extend_existing': True}
-    id = db.Column('id', db.Integer, primary_key=True)
+    id = db.Column('id', db.Integer, primary_key=True, unique=True)
     id_bassin = db.Column('id_bassin', db.Integer, db.ForeignKey(bassin.id_bassin))
     type_serie = db.Column('type_serie', db.String)
     pas_de_temps = db.Column('pas_de_temps', db.String)
@@ -111,13 +111,13 @@ class meta_series(db.Model):
     source = db.Column('source', db.String)
 
     def __repr__(self):
-        return '<meta_ts {}>'.format(self.id_serie)
+        return '<meta_ts {}>'.format(self.id)
 
 
 class don_series(db.Model):
     __tablename__ = 'don_series'
     __table_args__ = {'extend_existing': True}
-    id_serie = db.Column('id', db.Integer, db.ForeignKey(meta_series.id), primary_key=True)
+    id = db.Column('id', db.Integer, db.ForeignKey(meta_series.id), primary_key=True)
     date = db.Column('date', db.DateTime(timezone=True), primary_key=True)
     value = db.Column('value', db.REAL)
 
