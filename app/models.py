@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 
 
 Base = declarative_base()
-engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydrodatahub_design', echo=True)
+engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/hydrodatahub', echo=True)
 
 
 class region(db.Model):
@@ -35,8 +35,8 @@ class station(db.Model):
 class bassin(db.Model):
     __tablename__ = 'bassin'
     __table_args__ = {'extend_existing': True}
-    id_bassins = db.Column('id_bassins', db.Integer, primary_key=True)
-    numero_station = db.Column('numero_station', db.String)
+    id_bassin = db.Column('id_bassin', db.Integer, primary_key=True)
+    numero_station = db.Column('numero_station', db.String, unique=True)
     nom_station = db.Column('nom_station', db.String)
     nom_equiv = db.Column('nom_equivalent', db.String)
     province = db.Column('province', db.String)
@@ -47,7 +47,7 @@ class bassin(db.Model):
     id_region = db.Column('id_region', db.Integer, db.ForeignKey(region.id_region))
 
     def __repr__(self):
-        return '<basins {}>'.format(self.id_bassins)
+        return '<basins {}>'.format(self.id_bassin)
 
 
 class amenagement(db.Model):
@@ -55,7 +55,7 @@ class amenagement(db.Model):
     __table_args__ = {'extend_existing': True}
     id_amenagement = db.Column('id_amenagement', db.Integer, primary_key=True)
     nom_amenagement = db.Column('nom_amenagement', db.String)
-    id_bassins = db.Column('id_bassins', db.Integer, db.ForeignKey(bassin.id_bassins))
+    id_bassin = db.Column('id_bassins', db.Integer, db.ForeignKey(bassin.id_bassin))
 
     def __repr__(self):
         return '<amenagement {}>'.format(self.nom_amenagement)
@@ -66,7 +66,7 @@ class reservoir(db.Model):
     __table_args__ = {'extend_existing': True}
     id_reservoir = db.Column('id_reservoir', db.Integer, primary_key=True)
     nom_amenagement = db.Column('nom_amenagement', db.String)
-    id_bassins = db.Column('id_bassins', db.Integer, db.ForeignKey(bassin.id_bassins))
+    id_bassin = db.Column('id_bassin', db.Integer, db.ForeignKey(bassin.id_bassin))
     id_amenagement = db.Column('id_amenagement', db.Integer, db.ForeignKey(amenagement.id_amenagement))
 
     def __repr__(self):
@@ -100,28 +100,12 @@ class centrale(db.Model):
 class meta_series(db.Model):
     __tablename__ = 'meta_series'
     __table_args__ = {'extend_existing': True}
-    id_serie = db.Column('id', db.Integer, primary_key=True)
-    id_point = db.Column('id_bassins', db.Integer, db.ForeignKey(bassin.id_bassins))
+    id = db.Column('id', db.Integer, primary_key=True)
+    id_bassin = db.Column('id_bassin', db.Integer, db.ForeignKey(bassin.id_bassin))
     type_serie = db.Column('type_serie', db.String)
     pas_de_temps = db.Column('pas_de_temps', db.String)
     aggregation = db.Column('aggregation', db.String)
-    unite = db.Column('unites', db.String)
-    date_debut = db.Column('date_debut', db.DateTime(timezone=True))
-    date_fin = db.Column('date_fin', db.DateTime(timezone=True))
-    source = db.Column('source', db.String)
-
-    def __repr__(self):
-        return '<meta_ts {}>'.format(self.id_serie)
-
-class meta_series(db.Model):
-    __tablename__ = 'meta_series'
-    __table_args__ = {'extend_existing': True}
-    id_serie = db.Column('id', db.Integer, primary_key=True)
-    id_point = db.Column('id_bassins', db.Integer, db.ForeignKey(bassin.id_bassins))
-    type_serie = db.Column('type_serie', db.String)
-    pas_de_temps = db.Column('pas_de_temps', db.String)
-    aggregation = db.Column('aggregation', db.String)
-    unite = db.Column('unites', db.String)
+    unites = db.Column('unites', db.String)
     date_debut = db.Column('date_debut', db.DateTime(timezone=True))
     date_fin = db.Column('date_fin', db.DateTime(timezone=True))
     source = db.Column('source', db.String)
@@ -133,7 +117,7 @@ class meta_series(db.Model):
 class don_series(db.Model):
     __tablename__ = 'don_series'
     __table_args__ = {'extend_existing': True}
-    id_serie = db.Column('id', db.Integer, db.ForeignKey(meta_series.id_serie), primary_key=True)
+    id_serie = db.Column('id', db.Integer, db.ForeignKey(meta_series.id), primary_key=True)
     date = db.Column('date', db.DateTime(timezone=True), primary_key=True)
     value = db.Column('value', db.REAL)
 
