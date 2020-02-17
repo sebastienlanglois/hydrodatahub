@@ -3,6 +3,7 @@ from urllib.request import urlopen
 import re
 import pandas as pd
 import numpy as np
+from sqlalchemy.dialects import postgresql
 
 
 class StationParserCEHQ:
@@ -89,9 +90,9 @@ class StationParserCEHQ:
         :return:
         """
         df = pd.DataFrame(self.content[22:]).fillna(np.nan)[0].str.split(" +", expand=True).iloc[:, 1:3]
-        df.columns = ['DATE', 'VALUE']
-        df['VALUE'] = df['VALUE'].apply(pd.to_numeric, errors='coerce')
-        df = df.set_index('DATE')
+        df.columns = ['date', 'value']
+        df['value'] = df['value'].apply(pd.to_numeric, errors='coerce')
+        df = df.set_index('date')
         df.index = pd.to_datetime(df.index)
         df.index = df.index.tz_localize("America/Montreal", ambiguous='infer', nonexistent='shift_forward')
         return df
@@ -103,8 +104,8 @@ class StationParserCEHQ:
         :param encoding:
         :return:
         """
-        debut = self.values['VALUE'].dropna().index[0]
-        fin = self.values['VALUE'].dropna().index[-1]
+        debut = self.values['value'].dropna().index[0]
+        fin = self.values['value'].dropna().index[-1]
         return [debut, fin]
 
     def get_type_serie(self) -> str:
@@ -121,7 +122,7 @@ class StationParserCEHQ:
 from config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models import bassin, meta_series
+from app.models import bassin, meta_series, don_series
 
 
 class SQLAlchemyDBConnection(object):
@@ -160,7 +161,7 @@ class Bassin():
                 return False
 
     @property
-    def is_time_series_id_in_db(self) -> bool:
+    def is_time_series_id_in_db(self) -> list:
         """
 
         :return:
@@ -173,24 +174,24 @@ class Bassin():
                                       .id_bassin
 
                 # Get all metadata in database associated with id_bassin unique id and compare with current data point
-                compare_meta_series_results = []
+                meta_time_series_match =[]
                 for meta_time_series in db.session.query(meta_series).filter_by(id_bassin=id_bassin).all():
                     df = pd.DataFrame(index=[0],
                                       data={c.name: getattr(meta_time_series, c.name) for
                                             c in meta_time_series.__table__.columns})
 
-                    compare_meta_series_results.append(self.meta_series[['type_serie', 'pas_de_temps',
-                                                                          'aggregation', 'unites', 'source']] \
-                                                       .equals(df[['type_serie', 'pas_de_temps', 'aggregation',
-                                                                   'unites', 'source']]))
-                if any(compare_meta_series_results):
-                    return True
-                else:
-                    return False
-        else:
-            return False
+                    if self.meta_series[['type_serie', 'pas_de_temps', 'aggregation', 'unites', 'source']] \
+                           .equals(df[['type_serie', 'pas_de_temps', 'aggregation', 'unites', 'source']]):
+                        meta_time_series_match.append(meta_time_series)
 
-    def to_sql(self) -> bool:
+                if any(meta_time_series_match):
+                    return [True, meta_time_series_match]
+                else:
+                    return [False, []]
+        else:
+            return [False, []]
+
+    def to_sql(self):
         """
 
         :return:
@@ -202,19 +203,50 @@ class Bassin():
                                    if_exists='append',
                                    index=False)
 
-            if not self.is_time_series_id_in_db:
-                id_bassin = db.session.query(bassin) \
-                    .filter_by(numero_station=self.station.numero_station) \
-                    .first() \
-                    .id_bassin
-                df = self.meta_series
-                df.insert(0, 'id_bassin', id_bassin)
+            id_bassin = db.session.query(bassin) \
+                .filter_by(numero_station=self.station.numero_station) \
+                .first() \
+                .id_bassin
+            df = self.meta_series
+            values = self.don_series
+            df.insert(0, 'id_bassin', id_bassin)
+            if not self.is_time_series_id_in_db[0]:
                 df.to_sql(name=meta_series.__tablename__,
                           con=db.session.bind,
                           if_exists='append',
                           index=False)
+                id_ms = self.is_time_series_id_in_db[1][0].id
+                values.insert(0, 'id', id_ms)
+                values.to_sql(name=don_series.__tablename__,
+                              con=db.session.bind,
+                              if_exists='append',
+                              index=False)
+            else:
+                id_ms = self.is_time_series_id_in_db[1][0].id
+                df.insert(0, 'id', id_ms)
+                insrt_stmnt = postgresql.insert(meta_series) \
+                                        .values(df.to_dict(orient='records'))
+                update_dict = {
+                    c.name: c
+                    for c in insrt_stmnt.excluded
+                    if not c.primary_key
+                }
+                do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id'],
+                                                                    set_=update_dict)
+                db.session.bind.execute(do_nothing_stmt)
 
-
+                id = self.is_time_series_id_in_db[1][0].id
+                values.insert(0, 'id', id)
+                insrt_stmnt = postgresql.insert(don_series) \
+                                        .values(values.to_dict(orient='records'))
+                update_dict = {
+                    c.name: c
+                    for c in insrt_stmnt.excluded
+                    if not c.primary_key
+                }
+                do_nothing_stmt = insrt_stmnt.on_conflict_do_update(index_elements=['id', 'date'],
+                                                                    set_=update_dict)
+                db.session.bind.execute(do_nothing_stmt)
 
     @property
     def bassin(self) -> pd.DataFrame:
@@ -253,7 +285,7 @@ class Bassin():
                                   'date_debut': self.station.date_debut,
                                   'date_fin': self.station.date_fin,
                                   'source': self.station.source})
-
+    @property
     def don_series(self) -> pd.DataFrame:
         """
 
@@ -262,13 +294,14 @@ class Bassin():
         :return:
         """
 
-        return self.station.values
+        return self.station.values.drop_duplicates().reset_index()
 
 
 if __name__ == '__main__':
     station = StationParserCEHQ()
     b = Bassin(station)
     b.to_sql()
+    # print(b.is_time_series_id_in_db[0])
 
 
 
