@@ -5,6 +5,114 @@ import pandas as pd
 import numpy as np
 from sqlalchemy.dialects import postgresql
 
+import requests
+import pandas as pd
+import glob
+import re
+import numpy as np
+import os
+from requests import get
+from requests.exceptions import RequestException
+from contextlib import closing
+from bs4 import BeautifulSoup
+from multiprocessing import Pool
+import datetime
+from sqlalchemy import MetaData
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import create_engine
+from config import Config
+import multiprocessing
+
+engine = create_engine(Config.SQLALCHEMY_DATABASE_URI,
+                       echo=False)
+# engine = db.engine
+
+# Functions
+def simple_get(url):
+    """
+    Attempts to get the content at `url` by making an HTTP GET request.
+    If the content-type of response is some kind of HTML/XML, return the
+    text content, otherwise return None.
+    """
+    try:
+        with closing(get(url, stream=True)) as resp:
+            if is_good_response(resp):
+                return resp.content
+            else:
+                return None
+
+    except RequestException as e:
+        log_error('Error during requests to {0} : {1}'.format(url, str(e)))
+        return None
+
+
+def is_good_response(resp):
+    """
+    Returns True if the response seems to be HTML, False otherwise.
+    """
+    content_type = resp.headers['Content-Type'].lower()
+    return (resp.status_code == 200
+            and content_type is not None
+            and content_type.find('html') > -1)
+
+
+def log_error(e):
+    """
+    Prints log errors
+    """
+    print(e)
+
+
+def function_requests(args):
+    """
+    Function to apply when requesting file from url in args
+    :param args:
+    :return:
+    """
+    store, stations = args
+
+    CEHQ_URL = "https://www.cehq.gouv.qc.ca/depot/historique_donnees/fichier/"
+
+    rq = requests.get(CEHQ_URL + os.path.basename(stations[0].strip()) + '_Q.txt')  # create HTTP response object
+    if rq.status_code == 200:
+        print(store + '/' + stations[0].strip() + '_Q.txt')
+        with open(store + '/' + stations[0].strip() + '_Q.txt', 'wb') as f:
+            f.write(rq.content)
+
+    rn = requests.get(CEHQ_URL + os.path.basename(stations[0].strip()) + '_N.txt')  # create HTTP response object
+    if rn.status_code == 200:
+        print(store + '/' + stations[0].strip() + '_N.txt')
+        with open(store + '/' + stations[0].strip() + '_N.txt', 'wb') as f:
+            f.write(rn.content)
+
+
+def get_available_stations_from_cehq(url,
+                                     regions_list=["%02d" % n for n in range(0, 13)]):
+    """
+    Get list of all available stations from cehq with station's number and name as value
+    """
+    print('[' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '] Getting all available stations...')
+
+    stations = []
+    for region in regions_list:
+        file_url = url.replace('$', region)
+        raw_html = simple_get(file_url)
+        html = BeautifulSoup(raw_html, 'html.parser')
+
+        for list_element in (html.select('area')):
+            if list_element['href'].find('NoStation') > 0:
+                try:
+                    station_infos = list_element['title'].split('-', 1)
+                    stations.append(station_infos)
+
+                except RequestException as e:
+                    log_error('Error during requests to {0} : {1}'.format(url, str(e)))
+
+    print('[' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '] ' + str(len(stations)) + ' available stations...')
+    print('[' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '] Getting all available stations...done')
+    return stations
+
+
 
 class StationParserCEHQ:
     """
@@ -13,7 +121,6 @@ class StationParserCEHQ:
 
     def __init__(self,
                  url: str = "https://www.cehq.gouv.qc.ca/depot/historique_donnees/fichier/010101_Q.txt",
-                 source: str = "MINISTERE DE L'ENVIRONNEMENT DU QUEBEC",
                  encoding: str = "ISO-8859-1",
                  ):
 
@@ -30,10 +137,11 @@ class StationParserCEHQ:
         self.date_debut: str = self.get_start_end_date()[0]
         self.date_fin: str = self.get_start_end_date()[1]
         self.type_serie: str = self.get_type_serie()
+        self.nom_equivalent: str = self.get_equivalent_name_and_source()[0]
         self.pas_de_temps: str = '1_J'
         self.aggregation: str = "moy"
         self.unites: str = "m3/s"
-        self.source: str = source
+        self.source: str = self.get_equivalent_name_and_source()[1]
         self.province: str = "QC"
 
     @staticmethod
@@ -66,8 +174,7 @@ class StationParserCEHQ:
         :return:
         """
         lat_long = []
-        latlng_coordinates = self.content[4][22:-2].split()
-
+        latlng_coordinates = self.content[4][23:-1].split()
         if len(latlng_coordinates) < 5:
             latlng_coordinates = [x for x in latlng_coordinates if x]
             lat_long =  [float(latlng_coordinates[0]), float(latlng_coordinates[2])]
@@ -117,6 +224,22 @@ class StationParserCEHQ:
         """
         type_serie_id = self.filename.split('/')[-1].split('.')[0][-1]
         return "Debit" if type_serie_id is "Q" else 'Niveau'
+
+    def get_equivalent_name_and_source(self):
+        root_path = os.path.abspath(os.path.dirname(__file__))
+        df = pd.read_csv(os.path.join(root_path, 'app/tasks/data/equivalent_name_stations.csv'))
+
+        equiv_name = df[df['MDDELCC'] == str(int(self.numero_station))]['HYDAT']
+        if not any(equiv_name):
+            equiv_name = ""
+        else:
+            equiv_name = equiv_name.values[0]
+        source = df[df['MDDELCC'] == str(int(self.numero_station))]['Source']
+        if not any(source):
+            source = "MINISTERE DE L'ENVIRONNEMENT DU QUEBEC"
+        else:
+            source = source.values[0]
+        return [equiv_name, source]
 
 
 from config import Config
@@ -260,7 +383,7 @@ class Bassin():
         return pd.DataFrame(index=[0],
                             data={'numero_station': self.station.numero_station,
                                   'nom_station': self.station.nom_station,
-                                  'nom_equivalent': "",
+                                  'nom_equivalent': self.station.nom_equivalent,
                                   'province': self.station.province,
                                   'regularisation': self.station.regularisation,
                                   'superficie': self.station.superficie,
@@ -297,11 +420,36 @@ class Bassin():
         return self.station.values.drop_duplicates().reset_index()
 
 
+def cehq(station):
+    """
+
+    :param station:
+    :return:
+    """
+    CEHQ_URL = "https://www.cehq.gouv.qc.ca/depot/historique_donnees/fichier/"
+    print(station[0].strip())
+    try:
+        sta = StationParserCEHQ(CEHQ_URL + os.path.basename(station[0].strip()) + '_Q.txt')
+        b = Bassin(sta)
+        b.to_sql()
+    except Exception:
+        pass
+    try:
+        sta = StationParserCEHQ(CEHQ_URL + os.path.basename(station[0].strip()) + '_N.txt')
+        b = Bassin(sta)
+        b.to_sql()
+    except Exception:
+        pass
+
+
 if __name__ == '__main__':
-    station = StationParserCEHQ()
-    b = Bassin(station)
-    b.to_sql()
-    # print(b.is_time_series_id_in_db[0])
+    root_path = os.path.abspath(os.path.dirname(__file__))
+    pool = multiprocessing.Pool(8)
+
+    ORIGINAL_PATH = 'https://www.cehq.gouv.qc.ca/hydrometrie/historique_donnees/ListeStation.asp?regionhydro=$&Tri=Non'
+    stations = get_available_stations_from_cehq(ORIGINAL_PATH)
+
+    pool.map(cehq, stations)
 
 
 
