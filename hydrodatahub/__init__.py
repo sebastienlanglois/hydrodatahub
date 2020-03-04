@@ -7,11 +7,10 @@ from flask_migrate import Migrate
 from redis import Redis
 import rq
 from config import Config
-from app.dashboards import Dash_App1, Dash_App2
+from hydrodatahub.dashboards import Dash_App1, Dash_App2
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from app.tasks.cehq import main as cehq_task
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -32,17 +31,17 @@ def create_app(config_class=Config):
     db.init_app(app)
     MIGRATION_DIR = os.path.join('migrations')
     migrate.init_app(app, db, directory=MIGRATION_DIR)
-    # app.redis = Redis.from_url(app.config['REDIS_URL'])
-    # app.task_queue = rq.Queue('microblog-tasks', connection=app.redis)
+    # hydrodatahub.redis = Redis.from_url(hydrodatahub.config['REDIS_URL'])
+    # hydrodatahub.task_queue = rq.Queue('microblog-database', connection=hydrodatahub.redis)
     #
-    # from app.api import bp as api_bp
-    # app.register_blueprint(api_bp, url_prefix='/api')
+    # from hydrodatahub.api import bp as api_bp
+    # hydrodatahub.register_blueprint(api_bp, url_prefix='/api')
 
-    # from app.dashboards import bp as dash_bp
-    # app.register_blueprint(dash_bp, url_prefix='/dashboards')
+    # from hydrodatahub.dashboards import bp as dash_bp
+    # hydrodatahub.register_blueprint(dash_bp, url_prefix='/dashboards')
     #
-    # app = Dash_App1.Add_Dash(app)
-    # app = Dash_App2.Add_Dash(app)
+    # hydrodatahub = Dash_App1.Add_Dash(hydrodatahub)
+    # hydrodatahub = Dash_App2.Add_Dash(hydrodatahub)
 
     if not app.debug and not app.testing:
         if app.config['LOG_TO_STDOUT']:
@@ -66,4 +65,4 @@ def create_app(config_class=Config):
     return app
 
 
-from app import models
+from hydrodatahub import models
