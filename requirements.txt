@@ -29,7 +29,7 @@ Flask-WTF==0.14.2
 geopandas==0.6.2
 idna==2.8
 itsdangerous==1.1.0
-Jinja2==2.10.3
+Jinja2==2.11.3
 Mako==1.1.0
 MarkupSafe==1.1.1
 munch==2.5.0
